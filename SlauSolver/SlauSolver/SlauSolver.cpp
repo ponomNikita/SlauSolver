@@ -1,26 +1,40 @@
-// SlauSolver.cpp : Defines the exported functions for the DLL application.
-//
-
 #include "stdafx.h"
 #include "SlauSolver.h"
 
-
-// This is an example of an exported variable
-SLAUSOLVER_API int nSlauSolver=0;
-
-// This is an example of an exported function.
-SLAUSOLVER_API int fnSlauSolver(void)
-{
-	return 42;
-}
-
-// This is the constructor of a class that has been exported.
-// see SlauSolver.h for the class definition
 CSlauSolver::CSlauSolver()
 {
 	return;
 }
 
-int CSlauSolver::Incr(int a){
-	return a + 1;
+void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
+{
+
 }
+
+double CSlauSolver::Dot(double *a, double *b, int n)
+{
+	double res = 0;
+	for (int i = 0; i < n; i++)
+	{
+		res += a[i] * b[i];
+	}
+
+	return res;
+}
+
+void CSlauSolver::Sum(double *a, double *b, int n)
+{
+	for (int i = 0; i < n; i++)
+	{
+		a[i] += b[i];
+	}
+}
+
+void CSlauSolver::Diff(double *a, double *b, int n)
+{
+	for (int i = 0; i < n; i++)
+	{
+		a[i] -= b[i];
+	}
+}
+

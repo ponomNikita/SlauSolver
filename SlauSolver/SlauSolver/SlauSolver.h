@@ -1,22 +1,36 @@
-// The following ifdef block is the standard way of creating macros which make exporting 
-// from a DLL simpler. All files within this DLL are compiled with the SLAUSOLVER_EXPORTS
-// symbol defined on the command line. This symbol should not be defined on any project
-// that uses this DLL. This way any other project whose source files include this file see 
-// SLAUSOLVER_API functions as being imported from a DLL, whereas this DLL sees symbols
-// defined with this macro as being exported.
+#include <vector>
+
+using namespace std;
+
 #ifdef SLAUSOLVER_EXPORTS
 #define SLAUSOLVER_API __declspec(dllexport)
 #else
 #define SLAUSOLVER_API __declspec(dllimport)
 #endif
-// This class is exported from the SlauSolver.dll
+
+
+struct CRSMatrix
+{
+	int n; // Число строк в матрице 
+	int m; // Число столбцов в матрице 
+	int nz; // Число ненулевых элементов в разреженной матрице 
+	vector<double> val; // Массив значений матрицы по строкам 
+	vector<int> colIndex; // Массив номеров столбцов 
+	vector<int> rowPtr; // Массив индексов начала строк 
+};
+
 class SLAUSOLVER_API CSlauSolver {
 public:
 	CSlauSolver(void);
-	int Incr(int a);
-	// TODO: add your methods here.
+
+	void SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count);
+
+	double Dot(double *a, double *b, int n);
+
+	// Сумма векторов с записью в первый вектор
+	void Sum(double *a, double *b, int n);
+
+	// Разность векторов с записью в первый вектор
+	void Diff(double *a, double *b, int n);
 };
 
-extern SLAUSOLVER_API int nSlauSolver;
-
-SLAUSOLVER_API int fnSlauSolver(void);
