@@ -28,11 +28,22 @@ public:
 	double Dot(double *a, double *b, int n);
 
 	// Сумма векторов с записью в первый вектор
-	void Sum(double *a, double *b, int n);
+	void Sum(double *a, double *b, int n, double alfa = 1);
+	
+	// Сумма векторов с записью в другой вектор
+	void Sum(double *a, double *b, double * res,  int n, double alfa = 1);
 
 	// Разность векторов с записью в первый вектор
 	void Diff(double *a, double *b, int n);
 
 	void Mult(CRSMatrix & A, double * b, double * res);
+
+	// Решение выражения вида Rk = Rk-1 + alfa*A*Zk-1
+	void SolveR(CRSMatrix & A, double * z, double * r, double alfa = 1);
+
+private: 
+	void GenerateSolution(double * x, int n);
+	void Copy(double * a, double * copyA, int n);
+	bool IsEnd(double * x0, double * x, int n, double eps);
 };
 
