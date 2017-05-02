@@ -38,3 +38,19 @@ void CSlauSolver::Diff(double *a, double *b, int n)
 	}
 }
 
+void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
+{
+	int elemCountInRow = 0;
+
+	for (int i = 0; i < A.n; i++)
+	{
+		elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
+		res[i] = 0;
+
+		for (int j = 0; j < elemCountInRow; j++)
+		{
+			res[i] += A.val[A.rowPtr[i] + j] * b[A.colIndex[A.rowPtr[i] + j]];
+		}
+	}
+}
+

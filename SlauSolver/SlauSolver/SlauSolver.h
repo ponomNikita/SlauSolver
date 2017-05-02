@@ -32,5 +32,7 @@ public:
 
 	// –азность векторов с записью в первый вектор
 	void Diff(double *a, double *b, int n);
+
+	void Mult(CRSMatrix & A, double * b, double * res);
 };
 

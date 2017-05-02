@@ -70,5 +70,101 @@ namespace SlauSolverTests
 			Assert::AreEqual(true, res);
 		}
 
+		TEST_METHOD(MultCRSMatrixOnVectorTest)
+		{
+			/*
+				10, 0, 0, -2, 0,
+				3, 9, 0, 0, 0, 3,
+				0, 7, 8, 7, 0, 0,
+				3, 0, 8, 7, 5, 0,
+				0, 8, 0, 9, 9, 13,
+				0, 4, 0, 0, 2, -1
+			*/
+			vector<double> val = 
+			{
+				10, -2, 3, 9, 3, 7, 8, 7, 3, 8, 7, 5, 8, 9, 9, 13, 4, 2, -1
+			}; 
+			vector<int> colIndex = 
+			{
+				0, 4, 0, 1, 5, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
+			};
+			vector<int> rowPtr = 
+			{
+				0, 2, 5, 8, 12, 16, 19
+			};
+
+			CRSMatrix matrix = {};
+			matrix.n = 6;
+			matrix.m = 6;
+			matrix.val = val;
+			matrix.rowPtr = rowPtr;
+			matrix.colIndex = colIndex;
+
+			double b[] = 
+			{
+				1, 1, 1, 1, 1, 1
+			};
+
+			double expectedResult[] = 
+			{
+				8, 15, 22, 23, 39, 5
+			};
+
+			double * res = new double[6];
+
+			solver.Mult(matrix, b, res);
+
+			Assert::IsTrue(AreEqual(res, expectedResult, 6));
+		
+		}
+
+		TEST_METHOD(MultCRSMatrixWithZeroRowOnVectorTest)
+		{
+			/*
+			10, 0, 0, -2, 0,
+			0, 0, 0, 0, 0, 0,
+			0, 7, 8, 7, 0, 0,
+			3, 0, 8, 7, 5, 0,
+			0, 8, 0, 9, 9, 13,
+			0, 4, 0, 0, 2, -1
+			*/
+			vector<double> val =
+			{
+				10, -2, 7, 8, 7, 3, 8, 7, 5, 8, 9, 9, 13, 4, 2, -1
+			};
+			vector<int> colIndex =
+			{
+				0, 4, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
+			};
+			vector<int> rowPtr =
+			{
+				0, 2, 2, 5, 9, 13, 16
+			};
+
+			CRSMatrix matrix = {};
+			matrix.n = 6;
+			matrix.m = 6;
+			matrix.val = val;
+			matrix.rowPtr = rowPtr;
+			matrix.colIndex = colIndex;
+
+			double b[] =
+			{
+				1, 1, 1, 1, 1, 1
+			};
+
+			double expectedResult[] =
+			{
+				8, 0, 22, 23, 39, 5
+			};
+
+			double * res = new double[6];
+
+			solver.Mult(matrix, b, res);
+
+			Assert::IsTrue(AreEqual(res, expectedResult, 6));
+
+		}
+
 	};
 }
