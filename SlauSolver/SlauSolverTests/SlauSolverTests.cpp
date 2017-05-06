@@ -97,22 +97,22 @@ namespace SlauSolverTests
 		TEST_METHOD(MultCRSMatrixOnVectorTest)
 		{
 			/*
-				10, 0, 0, -2, 0,
+				10, 0, 0, -2, 0, 0
 				3, 9, 0, 0, 0, 3,
 				0, 7, 8, 7, 0, 0,
 				3, 0, 8, 7, 5, 0,
 				0, 8, 0, 9, 9, 13,
 				0, 4, 0, 0, 2, -1
 			*/
-			vector<double> val = 
+			vector<double> val =
 			{
 				10, -2, 3, 9, 3, 7, 8, 7, 3, 8, 7, 5, 8, 9, 9, 13, 4, 2, -1
-			}; 
-			vector<int> colIndex = 
-			{
-				0, 4, 0, 1, 5, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
 			};
-			vector<int> rowPtr = 
+			vector<int> colIndex =
+			{
+				0, 3, 0, 1, 5, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
+			};
+			vector<int> rowPtr =
 			{
 				0, 2, 5, 8, 12, 16, 19
 			};
@@ -145,7 +145,7 @@ namespace SlauSolverTests
 		TEST_METHOD(MultCRSMatrixWithZeroRowOnVectorTest)
 		{
 			/*
-			10, 0, 0, -2, 0,
+			10, 0, 0, -2, 0, 0
 			0, 0, 0, 0, 0, 0,
 			0, 7, 8, 7, 0, 0,
 			3, 0, 8, 7, 5, 0,
@@ -158,7 +158,7 @@ namespace SlauSolverTests
 			};
 			vector<int> colIndex =
 			{
-				0, 4, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
+				0, 3, 0, 1, 5, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
 			};
 			vector<int> rowPtr =
 			{
