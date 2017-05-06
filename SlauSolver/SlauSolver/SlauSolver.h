@@ -38,8 +38,14 @@ public:
 
 	void Mult(CRSMatrix & A, double * b, double * res);
 
-	// Решение выражения вида Rk = Rk-1 + alfa*A*Zk-1
-	void SolveR(CRSMatrix & A, double * z, double * r, double alfa = 1);
+	// Решение выражения вида Rk = Bk + alfa*A*Zk-1
+	void SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);
+
+	// Решение выражения вида Rk = Bk + alfa*A_transp*Zk-1
+	void SolveRT(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);
+
+	// Нахождение номера строки по индексу элемента в массиве val
+	int GetRowIndex(CRSMatrix & A, int index);
 
 private: 
 	void GenerateSolution(double * x, int n);

@@ -58,7 +58,7 @@ void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 	}
 }
 
-void CSlauSolver::SolveR(CRSMatrix & A, double * z, double * r, double alfa)
+void CSlauSolver::SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa)
 {
 	int elemCountInRow = 0;
 	double res;
@@ -72,7 +72,35 @@ void CSlauSolver::SolveR(CRSMatrix & A, double * z, double * r, double alfa)
 			res += A.val[A.rowPtr[i] + j] * z[A.colIndex[A.rowPtr[i] + j]] * alfa;
 		}
 
-		r[i] += res;
+		r[i] = b[i] + res;
+	}
+}
+
+void CSlauSolver::SolveRT(CRSMatrix & A, double * z, double * b, double * r, double alfa)
+{
+	int elemCountInCol = 0;
+	double res;
+	for (int i = 0; i < A.m; i++)
+	{
+		res = 0;
+		for (int j = 0; j < A.colIndex.size(); j++)
+		{
+			if (A.colIndex[j] == i)
+			{
+				res += alfa * A.val[j] * z[GetRowIndex(A, j)];
+			}
+		}
+
+		r[i] = b[i] + res;
+	}
+}
+
+int CSlauSolver::GetRowIndex(CRSMatrix & A, int index)
+{
+	for (int i = 0; i < A.rowPtr.size() - 1; i++)
+	{
+		if (index >= A.rowPtr[i] && index < A.rowPtr[i + 1])
+			return i;
 	}
 }
 
@@ -123,14 +151,14 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 
 
 	GenerateSolution(x, n);
-	SolveR(A, x, r, -1);
+	SolveR(A, x, b, r, -1);
 	Copy(r, p, n);
 	Copy(r, z, n);
 	Copy(r, s, n);
-	Copy(x, x0, n);
 
-	while (!IsEnd(x0, x, n, eps))
+	do
 	{
+		count++;
 		Copy(x, x0, n);
 		Copy(r, predR, n);
 		Copy(p, predP, n);
@@ -140,20 +168,23 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 
 		Sum(x, z, n, alfa); // пересчет x
 
-		SolveR(A, z, r, -alfa); // пересчет r
+		SolveR(A, z, r, r, -alfa); // пересчет r
 
-		SolveR(A, s, p, -alfa); // пересчет p
+		SolveRT(A, s, p, p, -alfa); // пересчет p
 
 		betta = Dot(p, r, n) / Dot(predP, predR, n);
 
-		Sum(r, z, z, betta); // пересчет z
+		Sum(r, z, z, n, betta); // пересчет z
 
-		Sum(p, s, s, betta); // пересчет s
-	}
+		Sum(p, s, s, n, betta); // пересчет s
+
+		if (count >= max_iter)
+			break;
+
+	} while (!IsEnd(x0, x, n, eps));
 
 	delete[] r, p, z, s, x, temp;
 }
-
 
 
 
