@@ -389,5 +389,155 @@ namespace SlauSolverTests
 
 		}
 
+		TEST_METHOD(SLE_Solver_CRS_BICG_Test2)
+		{
+			/*
+			2, 3, -4, 1
+			1, 0, 0, 1
+			-1, -1, 2, -1
+			2, -1, -1, 2
+			*/
+
+			vector<double> val =
+			{
+				2, 3, -4, 1, 1, 1, -1, -1, 2, -1, 2, -1, -1, 2
+			};
+			vector<int> colIndex =
+			{
+				0, 1, 2, 3, 0, 3, 0, 1, 2, 3, 0, 1, 2, 3
+			};
+			vector<int> rowPtr =
+			{
+				0, 4, 6, 10, 14
+			};
+
+			CRSMatrix matrix = {};
+			matrix.n = 4;
+			matrix.m = 4;
+			matrix.val = val;
+			matrix.rowPtr = rowPtr;
+			matrix.colIndex = colIndex;
+
+			double b[] = {
+				0, -1, 1, -2
+			};
+
+			double expectedX[] = {
+				1, 0, 0, -2
+			};
+
+			double * x = new double[4];
+
+			int count = 0;
+
+			solver.SLE_Solver_CRS_BICG(matrix, b, 0.001, 100, x, count);
+
+			Assert::IsTrue(AreEqual(x, expectedX, 4, 0.001));
+		}
+
+		TEST_METHOD(SolveRTest2)
+		{
+			/*
+			2, 3, -4, 1
+			1, 0, 0, 4
+			-1, -1, 2, -1
+			2, -1, -1, 2
+			*/
+
+			vector<double> val =
+			{
+				2, 3, -4, 1, 1, 4, -1, -1, 2, -1, 2, -1, -1, 2
+			};
+			vector<int> colIndex =
+			{
+				0, 1, 2, 3, 0, 3, 0, 1, 2, 3, 0, 1, 2, 3
+			};
+			vector<int> rowPtr =
+			{
+				0, 4, 6, 10, 14
+			};
+
+			CRSMatrix matrix = {};
+			matrix.n = 4;
+			matrix.m = 4;
+			matrix.val = val;
+			matrix.rowPtr = rowPtr;
+			matrix.colIndex = colIndex;
+
+			double b[] =
+			{
+				1, 1, 1, 1
+			};
+
+			double expectedResult[] =
+			{
+				-1, -4, 2, -1
+			};
+
+			double alfa = -1;
+
+			double r[] =
+			{
+				1, 1, 1, 1
+			};
+
+			solver.SolveR(matrix, b, r, r, alfa);
+
+			Assert::IsTrue(AreEqual(r, expectedResult, 4));
+
+		}
+
+		TEST_METHOD(SolveRTranspTest2)
+		{
+			/*
+			2, 3, -4, 1
+			1, 0, 0, 4
+			-1, -1, 2, -1
+			2, -1, -1, 2
+			*/
+
+			vector<double> val =
+			{
+				2, 3, -4, 1, 1, 4, -1, -1, 2, -1, 2, -1, -1, 2
+			};
+			vector<int> colIndex =
+			{
+				0, 1, 2, 3, 0, 3, 0, 1, 2, 3, 0, 1, 2, 3
+			};
+			vector<int> rowPtr =
+			{
+				0, 4, 6, 10, 14
+			};
+
+			CRSMatrix matrix = {};
+			matrix.n = 4;
+			matrix.m = 4;
+			matrix.val = val;
+			matrix.rowPtr = rowPtr;
+			matrix.colIndex = colIndex;
+
+			double b[] =
+			{
+				1, 1, 1, 1
+			};
+
+			double expectedResult[] =
+			{
+				-3, 0, 4, -5
+			};
+
+			double alfa = -1;
+
+			double r[] =
+			{
+				1, 1, 1, 1
+			};
+
+			solver.SolveRT(matrix, b, r, r, alfa);
+
+			Assert::IsTrue(AreEqual(r, expectedResult, 4));
+
+		}
+
 	};
 }

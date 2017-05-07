@@ -9,7 +9,7 @@ CSlauSolver::CSlauSolver()
 double CSlauSolver::Dot(double *a, double *b, int n)
 {
 	double res = 0;
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i < n; i++)
 	{
 		res += a[i] * b[i];
@@ -20,7 +20,7 @@ double CSlauSolver::Dot(double *a, double *b, int n)
 
 void CSlauSolver::Sum(double *a, double *b, int n, double alfa)
 {
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i < n; i++)
 	{
 		a[i] += b[i] * alfa;
@@ -29,7 +29,7 @@ void CSlauSolver::Sum(double *a, double *b, int n, double alfa)
 
 void CSlauSolver::Sum(double *a, double *b, double * res, int n, double alfa)
 {
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i < n; i++)
 	{
 		res[i] = a[i] + b[i] * alfa;
@@ -122,13 +122,13 @@ void  CSlauSolver::GenerateSolution(double * x, int n)
 {
 	for (int i = 0; i < n; i++)
 	{
-		x[i] = 0;
+		x[i] = 1;
 	}
 }
 
 void CSlauSolver::Copy(double * a, double * copyA, int n)
 {
-	#pragma omp parallel for
+	//#pragma omp parallel for
 	for (int i = 0; i < n; i++)
 	{
 		copyA[i] = a[i];
