@@ -9,7 +9,7 @@ CSlauSolver::CSlauSolver()
 double CSlauSolver::Dot(double *a, double *b, int n)
 {
 	double res = 0;
-//#pragma omp parallel for
+#pragma omp parallel for reduction(+:res)
 	for (int i = 0; i < n; i++)
 	{
 		res += a[i] * b[i];
@@ -29,7 +29,7 @@ void CSlauSolver::Sum(double *a, double *b, int n, double alfa)
 
 void CSlauSolver::Sum(double *a, double *b, double * res, int n, double alfa)
 {
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (int i = 0; i < n; i++)
 	{
 		res[i] = a[i] + b[i] * alfa;
@@ -128,7 +128,7 @@ void  CSlauSolver::GenerateSolution(double * x, int n)
 
 void CSlauSolver::Copy(double * a, double * copyA, int n)
 {
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = 0; i < n; i++)
 	{
 		copyA[i] = a[i];
@@ -177,6 +177,7 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 
 	GenerateSolution(x, n); // начальное приближение
 	SolveR(A, x, b, r, -1); // начальное r
+
 	Copy(r, p, n);
 	Copy(r, r_sop, n);
 	Copy(r, p_sop, n);
@@ -191,10 +192,10 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 		Mult(A, p, temp);
 		alfa = Dot(r, r_sop, n) / Dot(temp, p_sop, n);
 
-		Sum(x, p, x, n, alfa);
+		Sum(x, p, x, n, alfa); // пересчт x
 
-		SolveR(A, p, r, r, -alfa);
-		SolveRT(A, p_sop, r_sop, r_sop, -alfa);
+		SolveR(A, p, r, r, -alfa);  // пересчт r
+		SolveRT(A, p_sop, r_sop, r_sop, -alfa);  // пересчт r_sop
 
 		betta = Dot(r, r_sop, n) / Dot(predR, predR_sop, n);
 
