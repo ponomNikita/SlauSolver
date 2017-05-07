@@ -337,7 +337,7 @@ namespace SlauSolverTests
 
 			int count = 0;
 
-			solver.SLE_Solver_CRS_BICG(matrix, b, 0.001, 10, x, count);
+			solver.SLE_Solver_CRS_BICG(matrix, b, 0.001, 100, x, count);
 
 			Assert::IsTrue(AreEqual(x, expectedX, 3, 0.001));
 		}

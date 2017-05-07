@@ -148,57 +148,68 @@ bool CSlauSolver::IsEnd(double * x0, double * x, int n, double eps)
 	return true;
 }
 
+bool CSlauSolver::IsEnd(double * x, int n, double eps)
+{
+	double norma = 0;
+	for (int i = 0; i < n; i++)
+	{
+		norma += x[i] * x[i];
+	}
+
+	norma = sqrt(norma);
+	return norma < eps;
+}
+
 void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
 {
 	int n = A.n;
 
 	double * r = new double[n]();
 	double * p = new double[n]();
-	double * z = new double[n]();
-	double * s = new double[n]();
-	double * x0 = new double[n]();
+	double * r_sop = new double[n]();
+	double * p_sop = new double[n]();
 	double * temp = new double[n]();
-
+	double * predR_sop = new double[n]();
 	double * predR = new double[n]();
-	double * predP = new double[n]();
 
 	double alfa, betta;
 
 
-	GenerateSolution(x, n);
-	SolveR(A, x, b, r, -1);
+	GenerateSolution(x, n); // начальное приближение
+	SolveR(A, x, b, r, -1); // начальное r
 	Copy(r, p, n);
-	Copy(r, z, n);
-	Copy(r, s, n);
+	Copy(r, r_sop, n);
+	Copy(r, p_sop, n);
 
 	do
 	{
 		count++;
-		Copy(x, x0, n);
+
 		Copy(r, predR, n);
-		Copy(p, predP, n);
+		Copy(r_sop, predR_sop, n);
 
-		Mult(A, z, temp);
-		alfa = Dot(p, r, n) / Dot(s, temp, n);
+		Mult(A, p, temp);
+		alfa = Dot(r, r_sop, n) / Dot(temp, p_sop, n);
 
-		Sum(x, z, n, alfa); // пересчет x
+		Sum(x, p, x, n, alfa);
 
-		SolveR(A, z, r, r, -alfa); // пересчет r
+		SolveR(A, p, r, r, -alfa);
+		SolveRT(A, p_sop, r_sop, r_sop, -alfa);
 
-		SolveRT(A, s, p, p, -alfa); // пересчет p
+		betta = Dot(r, r_sop, n) / Dot(predR, predR_sop, n);
 
-		betta = Dot(p, r, n) / Dot(predP, predR, n);
-
-		Sum(r, z, z, n, betta); // пересчет z
-
-		Sum(p, s, s, n, betta); // пересчет s
+		if (betta == 0 || IsEnd(r, n, eps))
+			break;
 
 		if (count >= max_iter)
 			break;
 
-	} while (!IsEnd(x0, x, n, eps));
+		Sum(r, p, p, n, betta); // пересчт p
+		Sum(r_sop, p_sop, p_sop, n, betta); // пересчт p_sop
 
-	delete[] r, p, z, s, x, x0, temp, predR, predP;
+	} while (true);
+
+	delete[] r, p, temp, predR, r_sop, p_sop, predR_sop;
 }
 
 

@@ -52,5 +52,6 @@ private:
 	void GenerateSolution(double * x, int n);
 	void Copy(double * a, double * copyA, int n);
 	bool IsEnd(double * x0, double * x, int n, double eps);
+	bool IsEnd(double * x, int n, double eps);
 };
 
