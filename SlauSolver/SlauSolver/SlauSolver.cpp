@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "SlauSolver.h"
+#include <omp.h>
 
 CSlauSolver::CSlauSolver()
 {
@@ -47,12 +48,10 @@ void CSlauSolver::Diff(double *a, double *b, int n)
 
 void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 {
-	int elemCountInRow = 0;
-
-//#pragma omp parallel for
+#pragma omp parallel for schedule(runtime) 
 	for (int i = 0; i < A.n; i++)
 	{
-		elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
+		int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
 		res[i] = 0;
 
 		for (int j = 0; j < elemCountInRow; j++)
@@ -64,14 +63,11 @@ void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 
 void CSlauSolver::SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa)
 {
-	int elemCountInRow = 0;
-	double res;
-
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (int i = 0; i < A.n; i++)
 	{
-		elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
-		res = 0;
+		int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
+		double res = 0;
 
 		for (int j = 0; j < elemCountInRow; j++)
 		{
@@ -82,15 +78,30 @@ void CSlauSolver::SolveR(CRSMatrix & A, double * z, double * b, double * r, doub
 	}
 }
 
+void CSlauSolver::SolveRWithResolveX(CRSMatrix & A, double * z, double * b, double * r, double * x, double * p, double alfa)
+{
+#pragma omp parallel for
+	for (int i = 0; i < A.n; i++)
+	{
+		int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
+		double res = 0;
+
+		for (int j = 0; j < elemCountInRow; j++)
+		{
+			res += A.val[A.rowPtr[i] + j] * z[A.colIndex[A.rowPtr[i] + j]] * alfa;
+		}
+
+		r[i] = b[i] + res;
+		x[i] = x[i] - p[i] * alfa;
+	}
+}
+
 void CSlauSolver::SolveRT(CRSMatrix & A, double * z, double * b, double * r, double alfa)
 {
-	int elemCountInCol = 0;
-	double res;
-
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (int i = 0; i < A.m; i++)
 	{
-		res = 0;
+		double res = 0;
 		for (int j = 0; j < A.colIndex.size(); j++)
 		{
 			if (A.colIndex[j] == i)
@@ -160,6 +171,56 @@ bool CSlauSolver::IsEnd(double * x, int n, double eps)
 	return norma < eps;
 }
 
+double CSlauSolver::GetAlfaAndCopyPredArrays(CRSMatrix & A, double * r, double * r_sop, double * p, double * p_sop, double * temp, double * predR, double * predR_sop, int n)
+{
+	double alfa1 = 0;
+	double alfa2 = 0;
+#pragma omp parallel for reduction(+:alfa1, alfa2) 
+	for (int i = 0; i < A.n; i++)
+	{
+		predR[i] = r[i];
+		predR_sop[i] = r_sop[i];
+
+		int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
+		temp[i] = 0;
+
+		for (int j = 0; j < elemCountInRow; j++)
+		{
+			temp[i] += A.val[A.rowPtr[i] + j] * p[A.colIndex[A.rowPtr[i] + j]];
+		}
+
+		alfa1 += (r[i] * r_sop[i]);
+		alfa2 += (temp[i] * p_sop[i]);
+	}
+
+	return alfa1 / alfa2;
+}
+
+double CSlauSolver::GetBetta(double * r, double * r_sop, double * predR, double * predR_sop, int n)
+{
+	double betta1 = 0;
+	double betta2 = 0;
+
+#pragma omp parallel for reduction(+:betta1, betta2)
+	for (int i = 0; i < n; i++)
+	{
+		betta1 += r[i] * r_sop[i];
+		betta2 += predR[i] * predR_sop[i];
+	}
+
+	return betta1 / betta2;
+}
+
+void CSlauSolver::ResolvePandPSop(double * p, double * p_sop, double * r, double * r_sop, int n, double betta)
+{
+#pragma omp parallel for
+	for (int i = 0; i < n; i++)
+	{
+		p[i] = r[i] + p[i] * betta;
+		p_sop[i] = r_sop[i] + p_sop[i] * betta;
+	}
+}
+
 void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
 {
 	int n = A.n;
@@ -186,27 +247,33 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 	{
 		count++;
 
-		Copy(r, predR, n);
-		Copy(r_sop, predR_sop, n);
+		//Copy(r, predR, n);
+		//Copy(r_sop, predR_sop, n);
 
-		Mult(A, p, temp);
-		alfa = Dot(r, r_sop, n) / Dot(temp, p_sop, n);
+		//Mult(A, p, temp);
+		//alfa = Dot(r, r_sop, n) / Dot(temp, p_sop, n);
 
-		Sum(x, p, x, n, alfa); // пересчт x
+		alfa = GetAlfaAndCopyPredArrays(A, r, r_sop, p, p_sop, temp, predR, predR_sop, n);
 
-		SolveR(A, p, r, r, -alfa);  // пересчт r
+		//Sum(x, p, x, n, alfa); // пересчт x
+
+		//SolveR(A, p, r, r, -alfa);  // пересчт r
+		SolveRWithResolveX(A, p, r, r, x, p, -alfa);  // пересчт r
 		SolveRT(A, p_sop, r_sop, r_sop, -alfa);  // пересчт r_sop
 
-		betta = Dot(r, r_sop, n) / Dot(predR, predR_sop, n);
+		//betta = Dot(r, r_sop, n) / Dot(predR, predR_sop, n);
+		betta = GetBetta(r, r_sop, predR, predR_sop, n);
 
-		if (betta == 0 || IsEnd(r, n, eps))
+		if (abs(betta) < 0.000000001 || IsEnd(r, n, eps))
 			break;
 
 		if (count >= max_iter)
 			break;
 
-		Sum(r, p, p, n, betta); // пересчт p
-		Sum(r_sop, p_sop, p_sop, n, betta); // пересчт p_sop
+		//Sum(r, p, p, n, betta); // пересчт p
+		//Sum(r_sop, p_sop, p_sop, n, betta); // пересчт p_sop
+
+		ResolvePandPSop(p, p_sop, r, r_sop, n, betta); // пересчт p и p_sop
 
 	} while (true);
 

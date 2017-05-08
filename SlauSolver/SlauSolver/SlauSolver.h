@@ -1,5 +1,5 @@
 #include <vector>
-#include <omp.h>
+
 
 using namespace std;
 
@@ -41,12 +41,20 @@ public:
 
 	// Решение выражения вида Rk = Bk + alfa*A*Zk-1
 	void SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);
+	
+	void SolveRWithResolveX(CRSMatrix & A, double * z, double * b, double * r, double * x, double * p, double alfa = 1);
 
 	// Решение выражения вида Rk = Bk + alfa*A_transp*Zk-1
 	void SolveRT(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);
-
+	
 	// Нахождение номера строки по индексу элемента в массиве val
 	int GetRowIndex(CRSMatrix & A, int index);
+
+	double GetAlfaAndCopyPredArrays(CRSMatrix & A, double * r, double * r_sop, double * p, double * p_sop, double * temp, double * predR, double * predR_sop, int n);
+
+	double GetBetta(double * r, double * r_sop, double * predR, double * predR_sop, int n);
+
+	void ResolvePandPSop(double * p, double * p_sop, double * r, double * r_sop, int n, double betta);
 
 private: 
 	void GenerateSolution(double * x, int n);
