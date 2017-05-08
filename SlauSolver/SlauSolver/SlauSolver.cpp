@@ -272,7 +272,7 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 		double alfa2 = 0;
 
 		// ¬ычисление alfa
-//#pragma omp parallel for reduction(+:alfa1, alfa2)
+#pragma omp parallel for reduction(+:alfa1, alfa2)
 		for (int i = 0; i < A.n; i++)
 		{
 			int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
@@ -285,12 +285,6 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 
 			alfa1 += r[i] * r_sop[i];
 			alfa2 += a_p[i] * p_sop[i];
-
-			if (count > 1)	// пересчет p, p_sop
-			{
-				p[i] = r[i] + betta * p[i];
-				p_sop[i] = r[i] + betta * p_sop[i];
-			}
 		}
 
 		alfa = alfa1 / alfa2;
@@ -303,7 +297,7 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 		double betta1 = 0;
 		double betta2 = 0;
 
-//#pragma omp parallel for reduction(+:betta1, betta2)
+#pragma omp parallel for reduction(+:betta1, betta2)
 		for (int i = 0; i < n; i++)
 		{
 			x[i] += alfa * p[i];
@@ -320,12 +314,24 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 
 		// критерий останова
 
-		if (count >= max_iter
-			|| abs(betta) < 0.000000001
-			|| IsEnd(r, n, eps))
+		if (count >= max_iter || abs(betta) < 0.000000001)
 		{
 			break;
 		}
+
+		double norma = 0;
+#pragma omp parallel for reduction(+:norma)
+		for (int i = 0; i < n; i++)
+		{
+			p[i] = r[i] + betta * p[i];
+			p_sop[i] = r_sop[i] + betta * p_sop[i];
+
+			norma += r[i] * r[i];
+		}
+
+		norma = sqrt(norma);
+		if (norma < eps)
+			break;
 
 	} while (true);
 
