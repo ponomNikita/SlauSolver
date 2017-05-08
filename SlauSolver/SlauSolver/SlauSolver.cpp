@@ -289,8 +289,6 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 
 		alfa = alfa1 / alfa2;
 
-		MultTransp(A, p_sop, aT_p);
-		
 		// Пересчет x, r, r_sop, нахождение betta,
 		// копирование в массивы predR и predR_sop
 
@@ -298,18 +296,48 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 		double betta2 = 0;
 
 #pragma omp parallel for reduction(+:betta1, betta2)
-		for (int i = 0; i < n; i++)
+		for (int i = 0; i < A.m; i++)
 		{
-			x[i] += alfa * p[i];
-			r[i] -= alfa * a_p[i];
-			r_sop[i] -= alfa * aT_p[i];
+			aT_p[i] = 0;
+			for (int j = 0; j < A.colIndex.size(); j++)
+			{
+				if (A.colIndex[j] == i)
+				{
+					aT_p[i] += A.val[j] * p_sop[GetRowIndex(A, j)];
+				}
+			}
 
-			betta1 += r[i] * r_sop[i];
-			betta2 += predR[i] * predR_sop[i];
+			if (i < n)
+			{
+				x[i] += alfa * p[i];
+				r[i] -= alfa * a_p[i];
+				r_sop[i] -= alfa * aT_p[i];
 
-			predR[i] = r[i];
-			predR_sop[i] = r_sop[i];
+				betta1 += r[i] * r_sop[i];
+				betta2 += predR[i] * predR_sop[i];
+
+				predR[i] = r[i];
+				predR_sop[i] = r_sop[i];
+			}
 		}
+
+		if (A.m < n)
+		{
+#pragma omp parallel for reduction(+:betta1, betta2)
+			for (int i = A.m; i < n; i++)
+			{
+				x[i] += alfa * p[i];
+				r[i] -= alfa * a_p[i];
+				r_sop[i] -= alfa * aT_p[i];
+
+				betta1 += r[i] * r_sop[i];
+				betta2 += predR[i] * predR_sop[i];
+
+				predR[i] = r[i];
+				predR_sop[i] = r_sop[i];
+			}
+		}
+
 		betta = betta1 / betta2;
 
 		// критерий останова
