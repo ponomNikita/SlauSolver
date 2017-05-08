@@ -38,6 +38,8 @@ public:
 	void Diff(double *a, double *b, int n);
 
 	void Mult(CRSMatrix & A, double * b, double * res);
+	
+	void MultTransp(CRSMatrix & A, double * b, double * res);
 
 	// Решение выражения вида Rk = Bk + alfa*A*Zk-1
 	void SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);

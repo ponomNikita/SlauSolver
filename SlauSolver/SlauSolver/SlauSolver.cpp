@@ -61,6 +61,22 @@ void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 	}
 }
 
+void CSlauSolver::MultTransp(CRSMatrix & A, double * b, double * res)
+{
+#pragma omp parallel for
+	for (int i = 0; i < A.m; i++)
+	{
+		res[i] = 0;
+		for (int j = 0; j < A.colIndex.size(); j++)
+		{
+			if (A.colIndex[j] == i)
+			{
+				res[i] += A.val[j] * b[GetRowIndex(A, j)];
+			}
+		}
+	}
+}
+
 void CSlauSolver::SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa)
 {
 #pragma omp parallel for
@@ -229,7 +245,8 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 	double * p = new double[n]();
 	double * r_sop = new double[n]();
 	double * p_sop = new double[n]();
-	double * temp = new double[n]();
+	double * a_p = new double[n]();
+	double * aT_p = new double[n]();
 	double * predR_sop = new double[n]();
 	double * predR = new double[n]();
 
@@ -242,42 +259,77 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 	Copy(r, p, n);
 	Copy(r, r_sop, n);
 	Copy(r, p_sop, n);
+	Copy(r, predR_sop, n);
+	Copy(r, predR, n);
+
+	count = 0;
 
 	do
 	{
 		count++;
 
-		//Copy(r, predR, n);
-		//Copy(r_sop, predR_sop, n);
+		double alfa1 = 0;
+		double alfa2 = 0;
 
-		//Mult(A, p, temp);
-		//alfa = Dot(r, r_sop, n) / Dot(temp, p_sop, n);
+		// Вычисление alfa
+//#pragma omp parallel for reduction(+:alfa1, alfa2)
+		for (int i = 0; i < A.n; i++)
+		{
+			int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
+			a_p[i] = 0;
 
-		alfa = GetAlfaAndCopyPredArrays(A, r, r_sop, p, p_sop, temp, predR, predR_sop, n);
+			for (int j = 0; j < elemCountInRow; j++)
+			{
+				a_p[i] += A.val[A.rowPtr[i] + j] * p[A.colIndex[A.rowPtr[i] + j]];
+			}
 
-		//Sum(x, p, x, n, alfa); // пересчт x
+			alfa1 += r[i] * r_sop[i];
+			alfa2 += a_p[i] * p_sop[i];
 
-		//SolveR(A, p, r, r, -alfa);  // пересчт r
-		SolveRWithResolveX(A, p, r, r, x, p, -alfa);  // пересчт r
-		SolveRT(A, p_sop, r_sop, r_sop, -alfa);  // пересчт r_sop
+			if (count > 1)	// пересчет p, p_sop
+			{
+				p[i] = r[i] + betta * p[i];
+				p_sop[i] = r[i] + betta * p_sop[i];
+			}
+		}
 
-		//betta = Dot(r, r_sop, n) / Dot(predR, predR_sop, n);
-		betta = GetBetta(r, r_sop, predR, predR_sop, n);
+		alfa = alfa1 / alfa2;
 
-		if (abs(betta) < 0.000000001 || IsEnd(r, n, eps))
+		MultTransp(A, p_sop, aT_p);
+		
+		// Пересчет x, r, r_sop, нахождение betta,
+		// копирование в массивы predR и predR_sop
+
+		double betta1 = 0;
+		double betta2 = 0;
+
+//#pragma omp parallel for reduction(+:betta1, betta2)
+		for (int i = 0; i < n; i++)
+		{
+			x[i] += alfa * p[i];
+			r[i] -= alfa * a_p[i];
+			r_sop[i] -= alfa * aT_p[i];
+
+			betta1 += r[i] * r_sop[i];
+			betta2 += predR[i] * predR_sop[i];
+
+			predR[i] = r[i];
+			predR_sop[i] = r_sop[i];
+		}
+		betta = betta1 / betta2;
+
+		// критерий останова
+
+		if (count >= max_iter
+			|| abs(betta) < 0.000000001
+			|| IsEnd(r, n, eps))
+		{
 			break;
-
-		if (count >= max_iter)
-			break;
-
-		//Sum(r, p, p, n, betta); // пересчт p
-		//Sum(r_sop, p_sop, p_sop, n, betta); // пересчт p_sop
-
-		ResolvePandPSop(p, p_sop, r, r_sop, n, betta); // пересчт p и p_sop
+		}
 
 	} while (true);
 
-	delete[] r, p, temp, predR, r_sop, p_sop, predR_sop;
+	delete[] r, p, predR, r_sop, p_sop, predR_sop, aT_p, a_p;
 }
 
 
