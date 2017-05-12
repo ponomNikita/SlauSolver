@@ -1,6 +1,5 @@
 #include <vector>
 
-
 using namespace std;
 
 #ifdef SLAUSOLVER_EXPORTS
@@ -40,6 +39,8 @@ public:
 	void Mult(CRSMatrix & A, double * b, double * res);
 	
 	void MultTransp(CRSMatrix & A, double * b, double * res);
+
+	void Tranpose(CRSMatrix & A, CRSMatrix & tranposeA);
 
 	// Решение выражения вида Rk = Bk + alfa*A*Zk-1
 	void SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);

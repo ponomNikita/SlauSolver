@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "SlauSolver.h"
+#include <vector>
+
 #include <omp.h>
+using namespace std;
 
 CSlauSolver::CSlauSolver()
 {
@@ -17,6 +20,46 @@ double CSlauSolver::Dot(double *a, double *b, int n)
 	}
 
 	return res;
+}
+
+int CSlauSolver::GetRowIndex(CRSMatrix & A, int index)
+{
+	int res;
+	for (int i = 0; i < A.rowPtr.size() - 1; i++)
+	{
+		if (index >= A.rowPtr[i] && index < A.rowPtr[i + 1])
+		{
+			res = i;
+			break;
+		}
+	}
+
+	return res;
+}
+
+void CSlauSolver::Tranpose(CRSMatrix & A, CRSMatrix & tranposeA)
+{
+	tranposeA.m = A.n;
+	tranposeA.n = A.m;
+	tranposeA.val = vector<double>();
+	tranposeA.colIndex = vector<int>();
+	tranposeA.rowPtr = vector<int>();
+
+	int k = 0;
+	tranposeA.rowPtr.push_back(k);
+	for (int i = 0; i < A.m; i++)
+	{
+		for (int j = 0; j < A.colIndex.size(); j++)
+		{
+			if (A.colIndex[j] == i)
+			{
+				tranposeA.val.push_back(A.val[j]);
+				tranposeA.colIndex.push_back(GetRowIndex(A, j));
+				k++;
+			}
+		}
+		tranposeA.rowPtr.push_back(k);
+	}
 }
 
 void CSlauSolver::Sum(double *a, double *b, int n, double alfa)
@@ -51,12 +94,11 @@ void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 #pragma omp parallel for schedule(runtime) 
 	for (int i = 0; i < A.n; i++)
 	{
-		int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
 		res[i] = 0;
 
-		for (int j = 0; j < elemCountInRow; j++)
+		for (int j = A.rowPtr[i]; j < A.rowPtr[i + 1]; j++)
 		{
-			res[i] += A.val[A.rowPtr[i] + j] * b[A.colIndex[A.rowPtr[i] + j]];
+			res[i] += A.val[j] * b[A.colIndex[j]];
 		}
 	}
 }
@@ -128,21 +170,6 @@ void CSlauSolver::SolveRT(CRSMatrix & A, double * z, double * b, double * r, dou
 
 		r[i] = b[i] + res;
 	}
-}
-
-int CSlauSolver::GetRowIndex(CRSMatrix & A, int index)
-{
-	int res;
-	for (int i = 0; i < A.rowPtr.size() - 1; i++)
-	{
-		if (index >= A.rowPtr[i] && index < A.rowPtr[i + 1])
-		{
-			res = i;
-			break;
-		}
-	}
-
-	return res;
 }
 
 void  CSlauSolver::GenerateSolution(double * x, int n)
@@ -249,40 +276,51 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 	double * aT_p = new double[n]();
 	double * predR_sop = new double[n]();
 	double * predR = new double[n]();
+	double * predX = new double[n]();
 
 	double alfa, betta;
 
+	CRSMatrix tranposeMatrix = {};
 
-	GenerateSolution(x, n); // начальное приближение
-	SolveR(A, x, b, r, -1); // начальное r
+	Tranpose(A, tranposeMatrix);
 
-	Copy(r, p, n);
-	Copy(r, r_sop, n);
-	Copy(r, p_sop, n);
-	Copy(r, predR_sop, n);
-	Copy(r, predR, n);
+	//GenerateSolution(x, n); // начальное приближение
+	//SolveR(A, x, b, r, -1); // начальное r
+
+#pragma omp parallel for
+	for (int i = 0; i < n; i++)
+	{
+		x[i] = 0;
+		r[i] = b[i];
+		predR[i] = b[i];
+		predR_sop[i] = b[i];
+		r_sop[i] = b[i];
+		p[i] = b[i];
+		p_sop[i] = b[i];
+		predX[i] = 0;
+	}
 
 	count = 0;
 
-	do
+	for (; count < max_iter; count++)
 	{
-		count++;
-
 		double alfa1 = 0;
 		double alfa2 = 0;
 
 		// Вычисление alfa
-#pragma omp parallel for reduction(+:alfa1, alfa2)
-		for (int i = 0; i < A.n; i++)
+#pragma omp parallel for
+		for (int i = 0; i < n; i++)
 		{
-			int elemCountInRow = A.rowPtr[i + 1] - A.rowPtr[i];
 			a_p[i] = 0;
 
-			for (int j = 0; j < elemCountInRow; j++)
+			for (int j = A.rowPtr[i]; j < A.rowPtr[i + 1]; j++)
 			{
-				a_p[i] += A.val[A.rowPtr[i] + j] * p[A.colIndex[A.rowPtr[i] + j]];
+				a_p[i] += A.val[j] * p[A.colIndex[j]];
 			}
+		}
 
+		for (int i = 0; i < n; i++)
+		{
 			alfa1 += r[i] * r_sop[i];
 			alfa2 += a_p[i] * p_sop[i];
 		}
@@ -295,75 +333,58 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 		double betta1 = 0;
 		double betta2 = 0;
 
-#pragma omp parallel for reduction(+:betta1, betta2)
-		for (int i = 0; i < A.m; i++)
-		{
-			aT_p[i] = 0;
-			for (int j = 0; j < A.colIndex.size(); j++)
+
+#pragma omp parallel for
+			for (int i = 0; i < n; i++)
 			{
-				if (A.colIndex[j] == i)
+				double tmp = 0;
+				for (int j = tranposeMatrix.rowPtr[i]; j < tranposeMatrix.rowPtr[i + 1]; j++)
 				{
-					aT_p[i] += A.val[j] * p_sop[GetRowIndex(A, j)];
+					tmp += tranposeMatrix.val[j] * p_sop[tranposeMatrix.colIndex[j]];
 				}
-			}
 
-			if (i < n)
-			{
 				x[i] += alfa * p[i];
 				r[i] -= alfa * a_p[i];
-				r_sop[i] -= alfa * aT_p[i];
+				r_sop[i] -= alfa * tmp;
+			}
 
+			for (int i = 0; i < n; i++)
+			{
 				betta1 += r[i] * r_sop[i];
 				betta2 += predR[i] * predR_sop[i];
 
 				predR[i] = r[i];
 				predR_sop[i] = r_sop[i];
 			}
-		}
-
-		if (A.m < n)
-		{
-#pragma omp parallel for reduction(+:betta1, betta2)
-			for (int i = A.m; i < n; i++)
-			{
-				x[i] += alfa * p[i];
-				r[i] -= alfa * a_p[i];
-				r_sop[i] -= alfa * aT_p[i];
-
-				betta1 += r[i] * r_sop[i];
-				betta2 += predR[i] * predR_sop[i];
-
-				predR[i] = r[i];
-				predR_sop[i] = r_sop[i];
-			}
-		}
 
 		betta = betta1 / betta2;
 
 		// критерий останова
 
-		if (count >= max_iter || abs(betta) < 0.000000001)
+		if ( abs(betta) < 0.000000001)
 		{
 			break;
 		}
 
-		double norma = 0;
-#pragma omp parallel for reduction(+:norma)
+		bool isEnd = true;
+#pragma omp parallel for
 		for (int i = 0; i < n; i++)
 		{
 			p[i] = r[i] + betta * p[i];
 			p_sop[i] = r_sop[i] + betta * p_sop[i];
 
-			norma += r[i] * r[i];
+			if (abs(predX[i] - x[i]) > eps)
+			{
+				isEnd = false;
+			}
 		}
 
-		norma = sqrt(norma);
-		if (norma < eps)
+		if (isEnd)
 			break;
 
-	} while (true);
+	}
 
-	delete[] r, p, predR, r_sop, p_sop, predR_sop, aT_p, a_p;
+	delete[] r, p, predR, r_sop, p_sop, predR_sop, aT_p, a_p, predX;
 }
 
 

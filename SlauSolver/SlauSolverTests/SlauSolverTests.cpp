@@ -437,6 +437,65 @@ namespace SlauSolverTests
 
 		}
 
+		TEST_METHOD(TransposeMatrixTest)
+		{
+			/*
+			10, 0, 0, -2, 0,
+			3, 9, 0, 0, 0, 3,
+			0, 7, 8, 7, 0, 0,
+			3, 0, 8, 7, 5, 0,
+			0, 8, 0, 9, 9, 13,
+			0, 4, 0, 0, 2, -1
+			*/
+			vector<double> val =
+			{
+				10, -2, 3, 9, 3, 7, 8, 7, 3, 8, 7, 5, 8, 9, 9, 13, 4, 2, -1
+			};
+			vector<int> colIndex =
+			{
+				0, 3, 0, 1, 5, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4, 5, 1, 4, 5
+			};
+			vector<int> rowPtr =
+			{
+				0, 2, 5, 8, 12, 16, 19
+			};
+
+			CRSMatrix matrix = {};
+			matrix.n = 6;
+			matrix.m = 6;
+			matrix.val = val;
+			matrix.rowPtr = rowPtr;
+			matrix.colIndex = colIndex;
+
+			double valT[] =
+			{
+				10, 3, 3, 9, 7, 8, 4, 8, 8, -2, 7, 7, 9, 5, 9, 2, 3, 13, -1
+			};
+			int colIndexT[] =
+			{
+				0, 1, 3, 1, 2, 4, 5, 2, 3, 0, 2, 3, 4, 3, 4, 5, 1, 4, 5
+			};
+			int rowPtrT[] =
+			{
+				0, 3, 7, 9, 13, 16, 19
+			};
+
+			double * expectedVal = new double[19];
+			int * expectedColIndex = new int[19];
+			int * expectedrowPtr = new int[7];
+
+			CRSMatrix transposeMatrix = {};
+
+			solver.Tranpose(matrix, transposeMatrix);
+
+			for (int i = 0; i < 19; i++)
+			{
+				expectedVal[i] = transposeMatrix.val[i];
+			}
+
+			Assert::IsTrue(AreEqual(valT, expectedVal, 19, 0.0001));
+		}
+
 		TEST_METHOD(SLE_Solver_CRS_BICG_Test2)
 		{
 			/*
