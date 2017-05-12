@@ -367,17 +367,23 @@ void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int
 		}
 
 		bool isEnd = true;
-#pragma omp parallel for
+		bool endByXDiff = true;
+		double norma = 0;
 		for (int i = 0; i < n; i++)
 		{
 			p[i] = r[i] + betta * p[i];
 			p_sop[i] = r_sop[i] + betta * p_sop[i];
 
-			if (abs(predX[i] - x[i]) > eps)
+			if (abs(x[i] - predX[i]) > eps)
 			{
-				isEnd = false;
+				endByXDiff = false;
 			}
+			norma += r[i] * r[i];
 		}
+
+		norma = sqrt(norma);
+
+		isEnd = endByXDiff || norma < eps;
 
 		if (isEnd)
 			break;
