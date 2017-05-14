@@ -39,26 +39,37 @@ int CSlauSolver::GetRowIndex(CRSMatrix & A, int index)
 
 void CSlauSolver::Tranpose(CRSMatrix & A, CRSMatrix & tranposeA)
 {
-	tranposeA.m = A.n;
 	tranposeA.n = A.m;
-	tranposeA.val = vector<double>();
-	tranposeA.colIndex = vector<int>();
-	tranposeA.rowPtr = vector<int>();
+	tranposeA.m = A.n;
+	tranposeA.nz = A.nz;
+	tranposeA.val.resize(A.nz);
+	tranposeA.colIndex.resize(A.nz);
+	tranposeA.rowPtr.resize(A.m + 1);
+	for (int i = 0; i < A.nz; i++)
+		tranposeA.rowPtr[A.colIndex[i] + 1]++;
 
-	int k = 0;
-	tranposeA.rowPtr.push_back(k);
-	for (int i = 0; i < A.m; i++)
-	{
-		for (int j = 0; j < A.colIndex.size(); j++)
+	int S = 0;
+	int tmp_ = 0;
+
+	for (int i = 1; i <= A.m; i++) {
+		tmp_ = tranposeA.rowPtr[i];
+		tranposeA.rowPtr[i] = S;
+		S += tmp_;
+	}
+
+	for (int i = 0; i < A.n; i++) {
+		int j1 = A.rowPtr[i];
+		int j2 = A.rowPtr[i + 1];
+		int col = i;
+		for (int j = j1; j < j2; j++)
 		{
-			if (A.colIndex[j] == i)
-			{
-				tranposeA.val.push_back(A.val[j]);
-				tranposeA.colIndex.push_back(GetRowIndex(A, j));
-				k++;
-			}
+			double v = A.val[j];
+			int RIndex = A.colIndex[j];
+			int IIndex = tranposeA.rowPtr[RIndex + 1];
+			tranposeA.val[IIndex] = v;
+			tranposeA.colIndex[IIndex] = col;
+			tranposeA.rowPtr[RIndex + 1]++;
 		}
-		tranposeA.rowPtr.push_back(k);
 	}
 }
 
@@ -91,7 +102,7 @@ void CSlauSolver::Diff(double *a, double *b, int n)
 
 void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 {
-#pragma omp parallel for schedule(runtime) 
+#pragma omp parallel for
 	for (int i = 0; i < A.n; i++)
 	{
 		res[i] = 0;

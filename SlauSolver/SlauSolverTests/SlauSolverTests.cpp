@@ -369,6 +369,7 @@ namespace SlauSolverTests
 			CRSMatrix matrix = {};
 			matrix.n = 3;
 			matrix.m = 3;
+			matrix.nz = val.size();
 			matrix.val = val;
 			matrix.rowPtr = rowPtr;
 			matrix.colIndex = colIndex;
@@ -463,6 +464,7 @@ namespace SlauSolverTests
 			CRSMatrix matrix = {};
 			matrix.n = 6;
 			matrix.m = 6;
+			matrix.nz = val.size();
 			matrix.val = val;
 			matrix.rowPtr = rowPtr;
 			matrix.colIndex = colIndex;
@@ -521,6 +523,7 @@ namespace SlauSolverTests
 			CRSMatrix matrix = {};
 			matrix.n = 4;
 			matrix.m = 4;
+			matrix.nz = val.size();
 			matrix.val = val;
 			matrix.rowPtr = rowPtr;
 			matrix.colIndex = colIndex;
