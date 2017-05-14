@@ -42,6 +42,8 @@ public:
 
 	void Tranpose(CRSMatrix & A, CRSMatrix & tranposeA);
 
+	void Transpose1(CRSMatrix & A, CRSMatrix & At);
+
 	// Решение выражения вида Rk = Bk + alfa*A*Zk-1
 	void SolveR(CRSMatrix & A, double * z, double * b, double * r, double alfa = 1);
 	

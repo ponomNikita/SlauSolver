@@ -62,6 +62,42 @@ void CSlauSolver::Tranpose(CRSMatrix & A, CRSMatrix & tranposeA)
 	}
 }
 
+void CSlauSolver::Transpose1(CRSMatrix & A, CRSMatrix & At)
+{
+	At.n = A.m;
+	At.m = A.n;
+	At.nz = A.nz;
+	At.val.resize(A.nz);
+	At.colIndex.resize(A.nz);
+	At.rowPtr.resize(A.m + 1);
+	for (int i = 0; i < A.nz; i++)
+		At.rowPtr[A.colIndex[i] + 1]++;
+
+	int S = 0;
+	int tmp_ = 0;
+
+	for (int i = 1; i <= A.m; i++) {
+		tmp_ = At.rowPtr[i];
+		At.rowPtr[i] = S;
+		S += tmp_;
+	}
+
+	for (int i = 0; i < A.n; i++) {
+		int j1 = A.rowPtr[i];
+		int j2 = A.rowPtr[i + 1];
+		int col = i;
+		for (int j = j1; j < j2; j++)
+		{
+			double v = A.val[j];
+			int RIndex = A.colIndex[j];
+			int IIndex = At.rowPtr[RIndex + 1];
+			At.val[IIndex] = v;
+			At.colIndex[IIndex] = col;
+			At.rowPtr[RIndex + 1]++;
+		}
+	}
+}
+
 void CSlauSolver::Sum(double *a, double *b, int n, double alfa)
 {
 //#pragma omp parallel for
@@ -91,7 +127,7 @@ void CSlauSolver::Diff(double *a, double *b, int n)
 
 void CSlauSolver::Mult(CRSMatrix & A, double * b, double * res)
 {
-#pragma omp parallel for schedule(runtime) 
+#pragma omp parallel for
 	for (int i = 0; i < A.n; i++)
 	{
 		res[i] = 0;
@@ -267,130 +303,72 @@ void CSlauSolver::ResolvePandPSop(double * p, double * p_sop, double * r, double
 void CSlauSolver::SLE_Solver_CRS_BICG(CRSMatrix & A, double * b, double eps, int max_iter, double * x, int & count)
 {
 	int n = A.n;
+	double* r = new double[n];
+	double* p = new double[n];
+	double* prevR = new double[n];
+	double* prevP = new double[n];
+	double* r_sop = new double[n];
+	double* prevR_sop = new double[n];
+	double* a_p = new double[n];
+	double* aT_p = new double[n];
+	double* p_sop = new double[n];
+	double* prevP_sop = new double[n];
 
-	double * r = new double[n]();
-	double * p = new double[n]();
-	double * r_sop = new double[n]();
-	double * p_sop = new double[n]();
-	double * a_p = new double[n]();
-	double * aT_p = new double[n]();
-	double * predR_sop = new double[n]();
-	double * predR = new double[n]();
-	double * predX = new double[n]();
-
-	double alfa, betta;
-
-	CRSMatrix tranposeMatrix = {};
-
-	Tranpose(A, tranposeMatrix);
-
-	//GenerateSolution(x, n); // начальное приближение
-	//SolveR(A, x, b, r, -1); // начальное r
+	CRSMatrix At;
+	Transpose1(A, At);
 
 #pragma omp parallel for
-	for (int i = 0; i < n; i++)
+	for (int i = 0; i < n; i++) 
 	{
-		x[i] = 0;
 		r[i] = b[i];
-		predR[i] = b[i];
-		predR_sop[i] = b[i];
-		r_sop[i] = b[i];
-		p[i] = b[i];
-		p_sop[i] = b[i];
-		predX[i] = 0;
+		r_sop[i] = r[i];
+		x[i] = 0.0;
+		p[i] = r[i];
+		p_sop[i] = p[i];
 	}
 
-	count = 0;
-
-	for (; count < max_iter; count++)
+	for (; count < max_iter; count++) 
 	{
-		double alfa1 = 0;
-		double alfa2 = 0;
-
-		// Вычисление alfa
-#pragma omp parallel for
-		for (int i = 0; i < n; i++)
-		{
-			a_p[i] = 0;
-
-			for (int j = A.rowPtr[i]; j < A.rowPtr[i + 1]; j++)
-			{
-				a_p[i] += A.val[j] * p[A.colIndex[j]];
-			}
-		}
-
-		for (int i = 0; i < n; i++)
-		{
-			alfa1 += r[i] * r_sop[i];
-			alfa2 += a_p[i] * p_sop[i];
-		}
-
-		alfa = alfa1 / alfa2;
-
-		// Пересчет x, r, r_sop, нахождение betta,
-		// копирование в массивы predR и predR_sop
-
-		double betta1 = 0;
-		double betta2 = 0;
-
 
 #pragma omp parallel for
-			for (int i = 0; i < n; i++)
-			{
-				double tmp = 0;
-				for (int j = tranposeMatrix.rowPtr[i]; j < tranposeMatrix.rowPtr[i + 1]; j++)
-				{
-					tmp += tranposeMatrix.val[j] * p_sop[tranposeMatrix.colIndex[j]];
-				}
-
-				x[i] += alfa * p[i];
-				r[i] -= alfa * a_p[i];
-				r_sop[i] -= alfa * tmp;
-			}
-
-			for (int i = 0; i < n; i++)
-			{
-				betta1 += r[i] * r_sop[i];
-				betta2 += predR[i] * predR_sop[i];
-
-				predR[i] = r[i];
-				predR_sop[i] = r_sop[i];
-			}
-
-		betta = betta1 / betta2;
-
-		// критерий останова
-
-		if ( abs(betta) < 0.000000001)
+		for (int i = 0; i < n; i++) 
 		{
-			break;
+			prevR[i] = r[i];
+			prevP[i] = p[i];
+			prevR_sop[i] = r_sop[i];
+			prevP_sop[i] = p_sop[i];
 		}
 
-		bool isEnd = true;
-		bool endByXDiff = true;
-		double norma = 0;
-		for (int i = 0; i < n; i++)
-		{
-			p[i] = r[i] + betta * p[i];
-			p_sop[i] = r_sop[i] + betta * p_sop[i];
+		Mult(A, prevP, a_p);
+		Mult(At, prevP_sop, aT_p);
 
-			if (abs(x[i] - predX[i]) > eps)
-			{
-				endByXDiff = false;
-			}
-			norma += r[i] * r[i];
+		double rr = Dot(prevR, prevR_sop, A.n);
+		double App = Dot(a_p, prevP_sop, A.n);
+		double alfa = rr / App;
+
+#pragma omp parallel for
+		for (int i = 0; i < n; i++) 
+		{
+			x[i] += alfa * p[i];
+			r[i] = prevR[i] - alfa * a_p[i];
+			r_sop[i] = prevR_sop[i] - alfa * aT_p[i]; 
 		}
 
-		norma = sqrt(norma);
-
-		isEnd = endByXDiff || norma < eps;
-
-		if (isEnd)
+		rr = Dot(r, r_sop, A.n);
+		double prevrr = Dot(prevR, prevR_sop, A.n);
+		double beta = rr / prevrr;
+		if (IsEnd(r, A.m, eps))
 			break;
 
+#pragma omp parallel for
+		for (int i = 0; i < n; i++) 
+		{
+			p[i] = r[i] + beta * prevP[i];
+			p_sop[i] = r_sop[i] + beta * prevP_sop[i];
+		}
 	}
 
-	delete[] r, p, predR, r_sop, p_sop, predR_sop, aT_p, a_p, predX;
+	delete[] r, p, prevP, prevR, r_sop, prevR_sop, a_p, aT_p, p_sop, prevP_sop;
 }
 
 
